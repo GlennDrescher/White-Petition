@@ -12,10 +12,8 @@ class ViewController: UITableViewController {
 
     var petitions = [Petition]()
     
-    
-    override func viewDidLoad() {
-        super.viewDidLoad()
 
+    @objc func fetchJson() {
         let urlString: String
         
         if navigationController?.tabBarItem.tag == 0 {
@@ -23,19 +21,20 @@ class ViewController: UITableViewController {
         } else {
             urlString = "https://api.whitehouse.gov/v1/petitions.json?signatureCountFloor=10000&limit=100"
         }
-        
-        
-        DispatchQueue.global(qos: .userInitiated).async {
-            [weak self] in
             if let url = URL(string: urlString) {
                 if let data = try? Data(contentsOf: url) {
-                    self?.parse(json: data)
+                    parse(json: data)
                     return
-                }
             }
-            self?.showError()
+                performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
             
         }
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        performSelector(inBackground: #selector(fetchJson), with: nil)
     }
     
     func parse(json: Data) {
@@ -43,21 +42,16 @@ class ViewController: UITableViewController {
         
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
-            DispatchQueue.main.async {
-                [weak self] in
-                self?.tableView.reloadData()
-
-            }
+            tableView.performSelector(onMainThread: #selector(UITableView.reloadData), with: nil, waitUntilDone: false)
+        } else {
+            performSelector(onMainThread: #selector(showError), with: nil, waitUntilDone: false)
         }
     }
     
-    func showError() {
-        DispatchQueue.main.async {
-            [weak self] in
+    @objc func showError() {
             let ac = UIAlertController(title: "Loading error", message: "Error Message", preferredStyle: .alert)
             ac.addAction(UIAlertAction(title: "OK", style: .default))
-            self?.present(ac, animated: true)
-        }
+            present(ac, animated: true)
     }
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
